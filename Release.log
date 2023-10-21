@@ -1,0 +1,31 @@
+genomon_fisher
+
+
+v0.2.1 2022/12/28
+
+重要：samtools v1.10以上が必要です。
+
+*readのqnameをもとに、overlapがある場合の処理を変更した
+ depth,variantread,misrate,strandratioの計算の際、
+ #Previous
+    SNV->どちらか片方の鎖（おそらく+鎖）の情報のみ使用
+       ->overlapの際、片方のリードのみにvariantがある場合、挙動が予想と異なる可能性がある
+       ->strandratioについても、overlapは-鎖側のリードを捨てた後に計算するため、
+      　  insertが短くてほとんどのリードがoverlapしているような場合、strandratioはほぼ1になってしまう
+    indel->両方のリードをすべて合計して計算
+         ->例えばmin_variant_read=4で、2本のinsertが両方overlapしてindelを持っている場合でもOKになってしまう
+ #After
+    SNV,indelともに、少なくとも片方の鎖でvariantがあればカウントし、overlapがある場合もダブルカウントはしない
+    strandratioは、read(+) / ( read(+) + read(-) ) で計算し、本来の値になるように修正。
+    なお、total read = read(+) + read(-) - overlapped read (overlapした両方のリードでvariantがある場合)
+    
+*SNVの処理周りを変更し、同一箇所にSNVが複数ある場合でも別々にCallできるようにした
+
+    
+    
+    
+#技術情報
+samtools v1.10以降は --output-QNAME オプションがあるため、これを用いてoverlapの処理をしている。
+-x オプションも用いて、すべてのbase/qname/base qualityを出してから計算している
+v0.2.0では-xを用いていないため、-鎖側のoverlap readは無条件でbase quality=0になっていた
+なお、--reverse-delも用いて、deletionでskipしているリードが+鎖か-鎖かも検出している
